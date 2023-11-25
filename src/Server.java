@@ -1,7 +1,6 @@
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.InputMismatchException;
 import java.util.Scanner;
 
@@ -15,7 +14,6 @@ public class Server {
         Scanner in = new Scanner(System.in);
         System.out.print("INPUT PORT: ");
         int port = in.nextInt();
-
         ServerSocket server = new ServerSocket(port);
         while (true) {
             Socket socket_to_client = server.accept();
@@ -29,11 +27,12 @@ public class Server {
                 }
             }
 
-            Sender client = new Sender(socket_to_client, user_id, this);
-            users[user_id] = client;
 
-            Thread thread = new Thread(client);
-            thread.start();
+            Sender client = new Sender(socket_to_client, user_id, this);
+            if (user_id < MAX_PLAYERS_CNT) {
+                Thread thread = new Thread(client);
+                thread.start();
+            }
         }
     }
 }

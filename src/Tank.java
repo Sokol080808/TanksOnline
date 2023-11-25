@@ -8,9 +8,9 @@ public class Tank implements Serializable {
     double x, y, alpha;
     Tank() {
         x = y = 500;
-        alpha = Math.PI / 2;
+        alpha = 0;
     }
-    Tank(int x, int y, double alpha) {
+    Tank(double x, double y, double alpha) {
         this.x = x;
         this.y = y;
         this.alpha = alpha;

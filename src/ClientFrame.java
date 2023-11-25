@@ -2,15 +2,12 @@ import javax.imageio.ImageIO;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.event.MouseMotionListener;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.io.*;
-import java.util.ArrayList;
 
 public class ClientFrame extends JFrame implements KeyEventDispatcher {
+    int MAX_PLAYER_CNT = 4;
     ObjectOutputStream out;
 
     int X_CNT = 20, Y_CNT = 10, WALL_SIZE = 90;
@@ -22,7 +19,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
     boolean isPressedW = false, isPressedA = false, isPressedS = false, isPressedD = false;
 
     int id;
-    ArrayList<Tank> tanks = new ArrayList<>();
+    Tank[] tanks = new Tank[MAX_PLAYER_CNT];
 
     ClientFrame(int id, Map map, ObjectOutputStream out) throws IOException {
         this.id = id;
@@ -30,8 +27,6 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
         this.map = map;
         wall = ImageIO.read(new File("data\\wall.jpg"));
         tank_image = ImageIO.read(new File("data\\tank.png"));
-
-        tanks.add(new Tank(500, 500, 0));
 
         this.setUndecorated(true);
         this.setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -41,7 +36,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
     }
 
     void update() throws IOException {
-        Tank cur = tanks.get(id);
+        Tank cur = tanks[id];
         if (isPressedA) {
             cur.alpha -= Va;
         }
@@ -63,7 +58,10 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
         e.double_data.add(cur.x);
         e.double_data.add(cur.y);
         e.double_data.add(cur.alpha);
-        out.writeObject(e);
+        synchronized (out) {
+            out.writeObject(e);
+            out.flush();
+        }
     }
 
     @Override
@@ -77,7 +75,11 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
         g.clearRect(0, 0, getWidth(), getHeight());
 
         map.paint(g, wall);
-        for (Tank tank : tanks) tank.paint(g, tank_image);
+        for (Tank tank : tanks) {
+            if (tank == null) continue;
+            tank.paint(g, tank_image);
+        }
+
         try {
             update();
         } catch (IOException e) {
@@ -89,17 +91,27 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
     }
 
     void update_event(Event e) {
+        if (e.type == Event.TANK_CREATED) {
+            int t_id = e.int_data.get(0);
+            tanks[t_id] = new Tank(e.double_data.get(0),  e.double_data.get(1),  e.double_data.get(2));
+        }
         if (e.type == Event.TANK_POSITION) {
-            int id = e.int_data.get(0);
-            tanks.get(id).x = e.double_data.get(0);
-            tanks.get(id).y = e.double_data.get(1);
-            tanks.get(id).alpha = e.double_data.get(2);
+            int t_id = e.int_data.get(0);
+            if (tanks[t_id] == null) tanks[t_id] = new Tank();
+            tanks[t_id].x = e.double_data.get(0);
+            tanks[t_id].y = e.double_data.get(1);
+            tanks[t_id].alpha = e.double_data.get(2);
+        }
+        if (e.type == Event.TANK_DELETED) {
+            int t_id = e.int_data.get(0);
+            tanks[t_id] = null;
         }
     }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-        if (e.getKeyChar() == 'w') {
+
+        if (e.getKeyCode() == 87) {    // W
             if (e.getID() == KeyEvent.KEY_PRESSED) {
                 isPressedW = true;
             }
@@ -107,7 +119,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
                 isPressedW = false;
             }
         }
-        if (e.getKeyChar() == 'a') {
+        if (e.getKeyCode() == 65) {    // A
             if (e.getID() == KeyEvent.KEY_PRESSED) {
                 isPressedA = true;
             }
@@ -115,7 +127,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
                 isPressedA = false;
             }
         }
-        if (e.getKeyChar() == 's') {
+        if (e.getKeyCode() == 83) {    // S
             if (e.getID() == KeyEvent.KEY_PRESSED) {
                 isPressedS = true;
             }
@@ -123,7 +135,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
                 isPressedS = false;
             }
         }
-        if (e.getKeyChar() == 'd') {
+        if (e.getKeyCode() == 68) {    // D
             if (e.getID() == KeyEvent.KEY_PRESSED) {
                 isPressedD = true;
             }

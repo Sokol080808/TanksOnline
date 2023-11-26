@@ -5,9 +5,12 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferStrategy;
 import java.awt.image.BufferedImage;
 import java.io.*;
+import java.net.Socket;
+import java.net.SocketException;
 
 public class ClientFrame extends JFrame implements KeyEventDispatcher {
     int MAX_PLAYER_CNT = 4;
+    Socket connection;
     ObjectOutputStream out;
 
     int X_CNT = 20, Y_CNT = 10, WALL_SIZE = 90;
@@ -21,9 +24,10 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
     int id;
     Tank[] tanks = new Tank[MAX_PLAYER_CNT];
 
-    ClientFrame(int id, Map map, ObjectOutputStream out) throws IOException {
+    ClientFrame(int id, Map map, Socket connection, ObjectOutputStream out) throws IOException {
         this.id = id;
         this.out = out;
+        this.connection = connection;
         this.map = map;
         wall = ImageIO.read(new File("data\\wall.jpg"));
         tank_image = ImageIO.read(new File("data\\tank.png"));
@@ -59,8 +63,12 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
         e.double_data.add(cur.y);
         e.double_data.add(cur.alpha);
         synchronized (out) {
-            out.writeObject(e);
-            out.flush();
+            try {
+                out.writeObject(e);
+                out.flush();
+            } catch (SocketException se) {
+                System.out.println("BAD");
+            }
         }
     }
 

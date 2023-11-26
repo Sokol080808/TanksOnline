@@ -1,20 +1,25 @@
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
+import java.util.Scanner;
 
 public class Client {
     static int MAX_PLAYERS_CNT = 4;
     public static void main(String[] args) throws IOException, ClassNotFoundException {
-        Socket connection = new Socket("localhost", 1337);
-        ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
-        ObjectInputStream in = new ObjectInputStream(connection.getInputStream());
-        InputStream input = connection.getInputStream();
-        KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
+        Scanner sys_in = new Scanner(System.in);
+        String ip;
+        System.out.print("INPUT SERVER IP: ");
+        ip = sys_in.next();
+        int port;
+        System.out.print("INPUT SERVER PORT: ");
+        port = sys_in.nextInt();
 
-        Thread ShutdownHook = new Thread(() -> {
-           System.out.println("ABOBA");
-        });
-        Runtime.getRuntime().addShutdownHook(ShutdownHook);
+        Socket connection = new Socket(ip, port);
+        ObjectOutputStream out = new ObjectOutputStream(connection.getOutputStream());
+        InputStream input = connection.getInputStream();
+        ObjectInputStream in = new ObjectInputStream(input);
+
+        KeyboardFocusManager manager = KeyboardFocusManager.getCurrentKeyboardFocusManager();
 
         int id = in.read();
         if (id == MAX_PLAYERS_CNT) {
@@ -23,7 +28,23 @@ public class Client {
             return;
         }
 
-        ClientFrame frame = new ClientFrame(id, Map.open("BASE"), out);
+        Thread ShutdownHook = new Thread(() -> {
+            Event e = new Event();
+            e.type = Event.TANK_DELETED;
+            e.int_data.add(id);
+            synchronized (out) {
+                try {
+                    out.writeObject(e);
+                    out.flush();
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+            System.out.println("CLOSED");
+        });
+        Runtime.getRuntime().addShutdownHook(ShutdownHook);
+
+        ClientFrame frame = new ClientFrame(id, Map.open("BASE"), connection, out);
 
         frame.tanks[id] = new Tank();
         Event e = new Event();
@@ -38,12 +59,16 @@ public class Client {
         }
 
         manager.addKeyEventDispatcher(frame);
-        while (true) {
-            while (input.available() > 0) {
-                Event ev = (Event) in.readObject();
-                frame.update_event(ev);
+        while (!connection.isClosed()) {
+            try {
+                while (input.available() > 0) {
+                    Event ev = (Event) in.readObject();
+                    frame.update_event(ev);
+                }
+                frame.repaint();
+            } catch (IOException exc) {
+                break;
             }
-            frame.repaint();
         }
     }
 }

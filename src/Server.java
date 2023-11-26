@@ -14,6 +14,7 @@ public class Server {
         Scanner in = new Scanner(System.in);
         System.out.print("INPUT PORT: ");
         int port = in.nextInt();
+
         ServerSocket server = new ServerSocket(port);
         while (true) {
             Socket socket_to_client = server.accept();

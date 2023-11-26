@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class Sender implements Runnable {
     Socket client;
@@ -28,27 +29,40 @@ public class Sender implements Runnable {
             }
 
             server.users[user_id] = this;
-            while (true) {
+            while (!client.isClosed()) {
                 if (input.available() > 0) {
                     Event ev = (Event) in.readObject();
                     send(ev);
+                    if (ev.type == Event.TANK_DELETED) {
+                        break;
+                    }
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
             e.printStackTrace();
         }
 
+        try {
+            client.close();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         server.users_cnt--;
         server.users[user_id] = null;
     }
 
     void send(Event ev) throws IOException {
         for (Sender user : server.users) {
-            if (user == null || user.equals(this)) continue;
+            if (user == null || user.user_id == this.user_id) continue;
 
             synchronized (user.out) {
-                user.out.writeObject(ev);
-                user.out.flush();
+                try {
+                    user.out.writeObject(ev);
+                    user.out.flush();
+                } catch (SocketException se) {
+                    System.out.println("DISCONNECTED");
+                    // ДОБАВИТЬ ПОДТВЕРЖДЕНИЕ ОТКЛЮЧЕНИЯ ПОЛЬЗОВАТЕЛЯ
+                }
             }
         }
     }

@@ -24,6 +24,8 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
     int id;
     Tank[] tanks = new Tank[MAX_PLAYER_CNT];
 
+    long last_time = 0;
+
     ClientFrame(int id, Map map, Socket connection, ObjectOutputStream out) throws IOException {
         this.id = id;
         this.out = out;
@@ -56,18 +58,22 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
             cur.y -= V * Math.sin(cur.alpha);
         }
 
-        Event e = new Event();
-        e.type = Event.TANK_POSITION;
-        e.int_data.add(id);
-        e.double_data.add(cur.x);
-        e.double_data.add(cur.y);
-        e.double_data.add(cur.alpha);
-        synchronized (out) {
-            try {
-                out.writeObject(e);
-                out.flush();
-            } catch (SocketException se) {
-                System.out.println("BAD");
+        long cur_time = System.currentTimeMillis();
+        if (cur_time - last_time >= 20) {
+            last_time = cur_time;
+            Event e = new Event();
+            e.type = Event.TANK_POSITION;
+            e.int_data.add(id);
+            e.double_data.add(cur.x);
+            e.double_data.add(cur.y);
+            e.double_data.add(cur.alpha);
+            synchronized (out) {
+                try {
+                    out.writeObject(e);
+                    out.flush();
+                } catch (SocketException se) {
+                    System.out.println("BAD");
+                }
             }
         }
     }

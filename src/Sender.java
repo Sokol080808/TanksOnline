@@ -32,6 +32,7 @@ public class Sender implements Runnable {
             while (!client.isClosed()) {
                 if (input.available() > 0) {
                     Event ev = (Event) in.readObject();
+                    System.out.println("TIME = " + (System.currentTimeMillis() - ev.time));
                     send(ev);
                     if (ev.type == Event.TANK_DELETED) {
                         break;

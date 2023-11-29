@@ -7,13 +7,9 @@ public class Event implements Serializable {
     static int TANK_POSITION = 1;
     static int TANK_DELETED = -1;
 
+    long time = System.currentTimeMillis();
     int type = NOTHING;
     ArrayList<Integer> int_data = new ArrayList<>();
     ArrayList<Double> double_data = new ArrayList<>();
     Event() {}
-    Event(Event e) {
-        type = e.type;
-        int_data = new ArrayList<>(e.int_data);
-        double_data = new ArrayList<>(e.double_data);
-    }
 }

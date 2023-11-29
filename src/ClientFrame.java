@@ -58,9 +58,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
             cur.y -= V * Math.sin(cur.alpha);
         }
 
-        long cur_time = System.currentTimeMillis();
-        if (cur_time - last_time >= 20) {
-            last_time = cur_time;
+        Thread thread = new Thread(() -> {
             Event e = new Event();
             e.type = Event.TANK_POSITION;
             e.int_data.add(id);
@@ -71,11 +69,12 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
                 try {
                     out.writeObject(e);
                     out.flush();
-                } catch (SocketException se) {
+                } catch (IOException se) {
                     System.out.println("BAD");
                 }
             }
-        }
+        });
+        thread.start();
     }
 
     @Override
@@ -107,7 +106,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
     void update_event(Event e) {
         if (e.type == Event.TANK_CREATED) {
             int t_id = e.int_data.get(0);
-            tanks[t_id] = new Tank(e.double_data.get(0),  e.double_data.get(1),  e.double_data.get(2));
+            tanks[t_id] = new Tank(e.double_data.get(0), e.double_data.get(1), e.double_data.get(2));
         }
         if (e.type == Event.TANK_POSITION) {
             int t_id = e.int_data.get(0);

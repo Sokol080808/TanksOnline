@@ -10,6 +10,8 @@ public class Sender implements Runnable {
     Server server;
     int user_id;
 
+    long last_time = 0;
+
     Sender(Socket socket, int user_id, Server server) throws IOException {
         client = socket;
         out = new ObjectOutputStream(client.getOutputStream());
@@ -32,7 +34,15 @@ public class Sender implements Runnable {
             while (!client.isClosed()) {
                 if (input.available() > 0) {
                     Event ev = (Event) in.readObject();
-                    send(ev);
+                    if (ev.type == Event.TANK_POSITION) {
+                        long cur_time = System.currentTimeMillis();
+                        if (cur_time - last_time >= 10) {
+                            last_time = cur_time;
+                            send(ev);
+                        }
+                    } else {
+                        send(ev);
+                    }
                     if (ev.type == Event.TANK_DELETED) {
                         break;
                     }

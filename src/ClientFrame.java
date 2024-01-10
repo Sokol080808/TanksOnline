@@ -7,6 +7,7 @@ import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.ArrayList;
 
 public class ClientFrame extends JFrame implements KeyEventDispatcher {
     int MAX_PLAYER_CNT = 4;
@@ -17,14 +18,15 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
     int V = 2;
     double Va = 2 * Math.PI / 150;
     Map map;
-    BufferedImage wall, tank_image;
+    BufferedImage wall, tank_image, bullet_image;
 
-    boolean isPressedW = false, isPressedA = false, isPressedS = false, isPressedD = false;
+    boolean isPressedW = false, isPressedA = false, isPressedS = false, isPressedD = false, isPressedSpace = false;
 
     int id;
     Tank[] tanks = new Tank[MAX_PLAYER_CNT];
+    ArrayList<Bullet> bullets = new ArrayList<>();
 
-    long last_time = 0;
+    long last_shot = 0;
 
     ClientFrame(int id, Map map, Socket connection, ObjectOutputStream out) throws IOException {
         this.id = id;
@@ -33,9 +35,11 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
         this.map = map;
         wall = ImageIO.read(new File("data\\wall.jpg"));
         tank_image = ImageIO.read(new File("data\\tank.png"));
+        bullet_image = ImageIO.read(new File("data\\bullet.png"));
 
-        this.setUndecorated(true);
-        this.setExtendedState(JFrame.MAXIMIZED_BOTH);
+//        this.setUndecorated(true);
+//        this.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        this.setSize(1000, 1000);
         this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         this.setResizable(false);
         this.setVisible(true);
@@ -56,6 +60,38 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
         if (isPressedS) {
             cur.x -= V * Math.cos(cur.alpha);
             cur.y -= V * Math.sin(cur.alpha);
+        }
+
+        for (Bullet bullet : bullets) {
+            bullet.x += 5 * V * Math.cos(bullet.alpha);
+            bullet.y += 5 * V * Math.sin(bullet.alpha);
+        }
+
+        if (isPressedSpace) {
+            long cur_time = System.currentTimeMillis();
+            if (cur_time - last_shot >= 250) {
+                last_shot = cur_time;
+                double bx = cur.x + tank_image.getWidth() / 2.0 - bullet_image.getWidth() / 2.0;
+                double by = cur.y + tank_image.getHeight() / 2.0 - bullet_image.getHeight() / 2.0;
+                bullets.add(new Bullet(bx, by, cur.alpha));
+                Thread thread = new Thread(() -> {
+                    Event ev = new Event();
+                    ev.type = Event.BULLET_CREATED;
+
+                    ev.double_data.add(bx);
+                    ev.double_data.add(by);
+                    ev.double_data.add(cur.alpha);
+                    synchronized (out) {
+                        try {
+                            out.writeObject(ev);
+                            out.flush();
+                        } catch (IOException se) {
+                            System.out.println("BAD");
+                        }
+                    }
+                });
+                thread.start();
+            }
         }
 
         Thread thread = new Thread(() -> {
@@ -88,6 +124,7 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
         g.clearRect(0, 0, getWidth(), getHeight());
 
         map.paint(g, wall);
+        for (Bullet bullet : bullets) bullet.paint(g, bullet_image);
         for (Tank tank : tanks) {
             if (tank == null) continue;
             tank.paint(g, tank_image);
@@ -119,11 +156,13 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
             int t_id = e.int_data.get(0);
             tanks[t_id] = null;
         }
+        if (e.type == Event.BULLET_CREATED) {
+            bullets.add(new Bullet(e.double_data.get(0), e.double_data.get(1), e.double_data.get(2)));
+        }
     }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
-
         if (e.getKeyCode() == 87) {    // W
             if (e.getID() == KeyEvent.KEY_PRESSED) {
                 isPressedW = true;
@@ -156,6 +195,15 @@ public class ClientFrame extends JFrame implements KeyEventDispatcher {
                 isPressedD = false;
             }
         }
+        if (e.getKeyCode() == 32) {    // SPACE
+            if (e.getID() == KeyEvent.KEY_PRESSED) {
+                isPressedSpace = true;
+            }
+            if (e.getID() == KeyEvent.KEY_RELEASED) {
+                isPressedSpace = false;
+            }
+        }
+        System.out.println(e.getKeyCode());
         return false;
     }
 }
